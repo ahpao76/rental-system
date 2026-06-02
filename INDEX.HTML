@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoRent 質感租借平台</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #fcfbf7;
+            color: #292524;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* 隱藏滾動條但保持功能 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-md mx-auto min-h-screen bg-[#faf9f5] flex flex-col shadow-2xl relative pb-20 overflow-x-hidden">
+    
+    <transition name="fade">
+        <div v-if="toastMessage" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-stone-950/90 text-white text-xs py-2.5 px-5 rounded-full shadow-lg flex items-center gap-2 backdrop-blur-sm">
+            <i class="fa-solid fa-circle-check text-amber-400"></i>
+            <span>{{ toastMessage }}</span>
+        </div>
+    </transition>
+
+    <div v-if="currentPage === 'home'" class="flex-1 p-5">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-serif font-bold tracking-wide text-amber-950 cursor-pointer" @click="currentPage = 'home'">CoRent.</h1>
+            <div class="relative w-9 h-9 rounded-full bg-stone-200 overflow-hidden cursor-pointer border border-stone-200 shadow-sm" @click="currentPage = 'profile'">
+                <img :src="userProfile.avatar" class="w-full h-full object-cover">
+            </div>
+        </div>
+
+        <div class="relative mb-6 shadow-sm rounded-full">
+            <input type="text" v-model="searchQuery" @keyup.enter="goSearch" placeholder="搜尋書籍、服飾、生活用品..." 
+                   class="w-full bg-white border border-stone-200 rounded-full py-3 pl-11 pr-4 text-sm focus:outline-none focus:border-amber-700 transition">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-stone-400 text-sm cursor-pointer" @click="goSearch"></i>
+        </div>
+
+        <div class="mb-6">
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-3 px-1">探索分類</h3>
+            <div class="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                <button v-for="cat in categories" :key="cat" @click="selectCategory(cat)"
+                        class="bg-white border border-stone-200 px-4 py-1.5 rounded-full text-xs hover:border-amber-800 hover:bg-stone-50 shrink-0 transition font-medium text-stone-600">
+                    {{ cat }}
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <div class="flex justify-between items-center mb-4 px-1">
+                <h2 class="text-base font-bold text-stone-800">為你推薦</h2>
+                <span class="text-[11px] text-stone-400">風格精選</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div v-for="product in products" :key="product.id" class="bg-white rounded-xl border border-stone-100 overflow-hidden shadow-sm relative group transition hover:shadow-md">
+                    <button @click.stop="toggleFavorite(product.id)" class="absolute top-2.5 right-2.5 z-10 w-7 h-7 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-105 transition">
+                        <i :class="isFavorite(product.id) ? 'fa-solid fa-heart text-red-500' : 'fa-regular fa-heart text-stone-500'"></i>
+                    </button>
+                    
+                    <div @click="viewProduct(product)" class="cursor-pointer">
+                        <div class="w-full h-36 bg-stone-100 overflow-hidden">
+                            <img :src="product.image" class="w-full h-full object-cover transition duration-300 group-hover:scale-103">
+                        </div>
+                        <div class="p-3">
+                            <span class="text-[9px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded font-medium">{{ product.category }}</span>
+                            <h4 class="text-xs font-bold text-stone-800 mt-1.5 truncate">{{ product.name }}</h4>
+                            <div class="flex justify-between items-baseline mt-2">
+                                <span class="text-[10px] text-stone-400">每日</span>
+                                <span class="text-sm font-bold text-amber-950">${{ product.price }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="currentPage === 'search-results'" class="flex-1 p-5">
+        <div class="flex items-center gap-3 mb-5">
+            <button @click="currentPage = 'home'" class="text-stone-600 w-8 h-8 rounded-full bg-white flex items-center justify-center border border-stone-200"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+            <div class="relative flex-1">
+                <input type="text" v-model="searchQuery" placeholder="搜尋..." class="w-full bg-white border border-stone-200 rounded-full py-2 pl-9 pr-4 text-sm focus:outline-none">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-stone-400 text-xs"></i>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center text-xs text-stone-500 mb-4 pb-2 border-b border-stone-200/60">
+            <div>關於「{{ searchQuery }}」共有 {{ filteredProducts.length }} 筆結果</div>
+        </div>
+
+        <div v-if="filteredProducts.length === 0" class="text-center py-16 text-stone-400 text-sm">
+            沒有找到相符的質感好物
+        </div>
+        <div v-else class="grid grid-cols-2 gap-4">
+            <div v-for="product in filteredProducts" :key="product.id" @click="viewProduct(product)" class="bg-white rounded-xl border border-stone-100 overflow-hidden shadow-sm cursor-pointer">
+                <div class="w-full h-32 bg-stone-100"><img :src="product.image" class="w-full h-full object-cover"></div>
+                <div class="p-3">
+                    <h4 class="text-xs font-bold text-stone-800 truncate">{{ product.name }}</h4>
+                    <p class="text-xs font-bold text-amber-950 mt-1">${{ product.price }} / 日</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="currentPage === 'detail' && selectedProduct" class="flex-1 bg-white">
+        <div class="relative h-72 bg-stone-100">
+            <img :src="selectedProduct.image" class="w-full h-full object-cover">
+            <button @click="currentPage = 'home'" class="absolute top-5 left-5 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-stone-700 shadow-sm">
+                <i class="fa-solid fa-arrow-left text-sm"></i>
+            </button>
+        </div>
+        
+        <div class="p-5 bg-[#faf9f5] rounded-t-3xl -mt-6 relative z-10 min-h-[400px] shadow-inner">
+            <span class="text-[10px] bg-amber-100 text-amber-900 font-bold px-2.5 py-0.5 rounded-full">{{ selectedProduct.category }}</span>
+            <h2 class="text-lg font-bold text-stone-900 mt-2">{{ selectedProduct.name }}</h2>
+            
+            <div class="flex justify-between items-center my-4 py-3 border-y border-stone-200/60">
+                <div>
+                    <p class="text-[10px] text-stone-400 uppercase tracking-wider">每日租金</p>
+                    <p class="text-base font-bold text-amber-950">${{ selectedProduct.price }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] text-stone-400 uppercase tracking-wider">押金需求</p>
+                    <p class="text-sm font-medium text-stone-600">${{ selectedProduct.deposit || (selectedProduct.price * 3) }}</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 mb-5 p-3 bg-white border border-stone-100 rounded-xl">
+                <div class="w-9 h-9 rounded-full bg-stone-200 overflow-hidden"><img :src="selectedProduct.ownerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover"></div>
+                <div class="flex-1">
+                    <p class="text-xs font-bold text-stone-800">{{ selectedProduct.owner || '質感品味家' }}</p>
+                    <p class="text-[10px] text-emerald-600">✓ 認證共享島民</p>
+                </div>
+                <button @click="startChat(selectedProduct.owner)" class="text-xs border border-stone-200 px-3 py-1 rounded-full hover:bg-stone-50 font-medium text-stone-600">聊聊</button>
+            </div>
+
+            <div class="mb-6">
+                <h4 class="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-2">商品說明</h4>
+                <p class="text-xs text-stone-600 leading-relaxed">{{ selectedProduct.description }}</p>
+            </div>
+
+            <button @click="currentPage = 'select-date'" class="w-full bg-amber-900 text-white text-sm font-medium py-3 rounded-xl hover:bg-amber-950 transition shadow-md active:scale-[0.99]">
+                選擇租借日期
+            </button>
+        </div>
+    </div>
+
+    <div v-if="currentPage === 'rent-out'" class="flex-1 p-5">
+        <h2 class="text-lg font-bold text-stone-800 mb-5 font-serif">上架您的共享物品</h2>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-[11px] font-bold text-stone-400 mb-1">商品照片</label>
+                <div @click="simulateUpload" class="border border-dashed border-stone-300 rounded-xl p-5 text-center bg-white cursor-pointer hover:border-amber-700 transition">
+                    <div v-if="!newProduct.image" class="text-stone-400 py-2">
+                        <i class="fa-regular fa-image text-xl mb-1"></i>
+                        <p class="text-xs">點擊模擬上傳優質照片</p>
+                    </div>
+                    <div v-else class="flex flex-col items-center">
+                        <img :src="newProduct.image" class="h-16 w-16 object-cover rounded shadow-sm mb-1">
+                        <p class="text-[10px] text-emerald-600">✓ 照片上傳成功</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-stone-400 mb-1">商品名稱</label>
+                <input type="text" v-model="newProduct.name" placeholder="請輸入名稱" class="w-full bg-white border border-stone-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-amber-700">
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-stone-400 mb-1">分類</label>
+                <select v-model="newProduct.category" class="w-full bg-white border border-stone-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-amber-700">
+                    <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-stone-400 mb-1">描述</label>
+                <textarea v-model="newProduct.description" rows="2" placeholder="說明使用細節..." class="w-full bg-white border border-stone-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-amber-700"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-stone-400 mb-1">日租金</label>
+                    <input type="number" v-model="newProduct.price" class="w-full bg-white border border-stone-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-amber-700">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-stone-400 mb-1">押金</label>
+                    <input type="number" v-model="newProduct.deposit" class="w-full bg-white border border-stone-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-amber-700">
+                </div>
+            </div>
+
+            <button @click="submitRentOut" class="w-full bg-amber-900 text-white text-xs font-bold py-3 rounded-xl shadow-sm hover:bg-amber-950 transition">
+                上架發布
+            </button>
+        </div>
+    </div>
+
+    <div v-if="currentPage === 'select-date'" class="flex-1 p-5">
+        <div class="flex items-center gap-3 mb-4">
+            <button @click="currentPage = 'detail'" class="text-stone-600"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+            <h2 class="text-base font-bold text-stone-800">選擇您的預約租期</h2>
+        </div>
+
+        <p class="text-[11px] text-stone-400 mb-3 px-1"><i class="fa-solid fa-circle-info"></i> 今天是 2026年6月3日，系統已自動為您屏蔽過去日期。</p>
+
+        <div class="bg-white border border-stone-200 rounded-2xl p-4 mb-4 shadow-xs">
+            <div class="flex justify-between items-center mb-4 border-b border-stone-100 pb-2">
+                <span class="font-bold text-xs text-stone-700">2026年 6月</span>
+                <span class="text-[10px] text-amber-900 bg-amber-50 px-2 py-0.5 rounded font-medium">當月可租</span>
+            </div>
+            
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-stone-400 mb-2">
+                <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+            </div>
+            
+            <div class="grid grid-cols-7 gap-y-2 gap-x-1 text-center text-xs">
+                <span></span><span></span>
+                <span v-for="day in 30" :key="day" 
+                      @click="day >= 3 ? selectDay(day) : showToast('不可選擇過去的日期！')"
+                      :class="[getDayClass(day), day < 3 ? 'opacity-20 cursor-not-allowed text-stone-300' : 'cursor-pointer']"
+                      class="py-2 rounded-lg font-medium transition flex items-center justify-center">
+                    {{ day }}
+                </span>
+            </div>
+        </div>
+
+        <div class="bg-stone-100/80 rounded-xl p-3 space-y-2 text-xs text-stone-600">
+            <div class="flex justify-between"><span>取貨日期:</span><span class="font-bold text-stone-800">{{ rentalPeriod.start ? `2026-06-${rentalPeriod.start}` : '尚未點選' }}</span></div>
+            <div class="flex justify-between"><span>歸還日期:</span><span class="font-bold text-stone-800">{{ rentalPeriod.end ? `2026-06-${rentalPeriod.end}` : '尚未點選' }}</span></div>
+            <div class="flex justify-between border-t border-stone-200/50 pt-2 text-xs">
+                <span>租借總天數:</span>
+                <span class="font-bold text-amber-900 text-sm">{{ totalDays }} 天</span>
+            </div>
+        </div>
+
+        <button @click="confirmDate" :disabled="totalDays <= 0"
+                class="w-full text-white text-xs font-bold py-3 rounded-xl mt-4 transition shadow-sm"
+                :class="totalDays > 0 ? 'bg-amber-900 hover:bg-amber-950 active:scale-[0.99]' : 'bg-stone-300 cursor-not-allowed'">
+            確認時程，下一步
+        </button>
+    </div>
+
+    <div v-if="currentPage === 'order-confirm'" class="flex-1 p-5">
+        <h2 class="text-base font-bold text-stone-800 mb-4">確認訂單明細</h2>
+        
+        <div class="bg-white border border-stone-200 rounded-2xl p-4 space-y-3 shadow-xs mb-5">
+            <div class="flex gap-3 pb-3 border-b border-stone-100">
+                <img :src="selectedProduct.image" class="w-14 h-14 object-cover rounded-lg bg-stone-50">
+                <div class="min-w-0 flex-1">
+                    <h4 class="text-xs font-bold text-stone-800 truncate">{{ selectedProduct.name }}</h4>
+                    <p class="text-[10px] text-stone-400 mt-0.5">共享擁有者：{{ selectedProduct.owner }}</p>
+                </div>
+            </div>
+            
+            <div class="text-xs space-y-1 text-stone-500 border-b border-stone-100 pb-3">
+                <p>約定租期：<span class="text-stone-800 font-medium">06/{{ rentalPeriod.start }} ~ 06/{{ rentalPeriod.end }}</span></p>
+                <p>計算天數：<span class="text-stone-800 font-medium">{{ totalDays }} 天</span></p>
+            </div>
+
+            <div class="text-xs space-y-2 pt-1">
+                <div class="flex justify-between"><span class="text-stone-400">租金小計</span><span class="text-stone-800">${{ selectedProduct.price * totalDays }}</span></div>
+                <div class="flex justify-between"><span class="text-stone-400">履約押金 (還件後退還)</span><span class="text-stone-800">${{ selectedProduct.deposit || (selectedProduct.price * 3) }}</span></div>
+                <div class="flex justify-between border-t border-stone-100 pt-2 text-xs font-bold">
+                    <span class="text-stone-800">應付總計</span>
+                    <span class="text-amber-950 text-sm">${{ grandTotal }}</span>
+                </div>
+            </div>
+        </div>
+
+        <button @click="currentPage = 'checkout-gate'" class="w-full bg-amber-900 text-white text-xs font-bold py-3 rounded-xl hover:bg-amber-950 transition shadow-md">
+            前往模擬收銀台
+        </button>
+    </div>
+
+    <div v-if="currentPage === 'checkout-gate'" class="flex-1 p-5 bg-stone-50/50">
+        <div class="flex items-center gap-3 mb-5">
+            <button @click="currentPage = 'order-confirm'" class="text-stone-600"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+            <h2 class="text-base font-bold text-stone-800">安全付款收銀台</h2>
+        </div>
+
+        <div class="bg-white border border-stone-200 rounded-xl p-4 text-center shadow-xs mb-5">
+            <p class="text-[11px] text-stone-400 uppercase tracking-wider">CoRent 擔保交易總額</p>
+            <p class="text-2xl font-serif font-bold text-stone-900 mt-1">${{ grandTotal }}</p>
+        </div>
+
+        <div class="mb-6">
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-3 px-1">選擇付款方式</h3>
+            <div class="space-y-3">
+                
+                <div @click="paymentMethod = 'applepay'" 
+                     :class="paymentMethod === 'applepay' ? 'border-stone-950 bg-stone-50 ring-1 ring-stone-950' : 'border-stone-200 bg-white'"
+                     class="border rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-7 h-7 bg-black rounded flex items-center justify-center text-white text-xs"><i class="fa-brands fa-apple-pay text-lg"></i></div>
+                        <span class="text-xs font-bold text-stone-800">Apple Pay</span>
+                    </div>
+                    <div class="w-4 h-4 rounded-full border flex items-center justify-center" :class="paymentMethod === 'applepay' ? 'border-stone-950 bg-stone-950' : 'border-stone-300'">
+                        <div v-if="paymentMethod === 'applepay'" class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                    </div>
+                </div>
+
+                <div @click="paymentMethod = 'linepay'" 
+                     :class="paymentMethod === 'linepay' ? 'border-emerald-500 bg-emerald-50/20 ring-1 ring-emerald-500' : 'border-stone-200 bg-white'"
+                     class="border rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-7 h-7 bg-[#06C755] rounded flex items-center justify-center text-white text-[10px] font-bold">LINE</div>
+                        <span class="text-xs font-bold text-stone-800">LINE Pay 行動支付</span>
+                    </div>
+                    <div class="w-4 h-4 rounded-full border flex items-center justify-center" :class="paymentMethod === 'linepay' ? 'border-emerald-500 bg-emerald-500' : 'border-stone-300'">
+                        <div v-if="paymentMethod === 'linepay'" class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                    </div>
+                </div>
+
+                <div @click="paymentMethod = 'jkopay'" 
+                     :class="paymentMethod === 'jkopay' ? 'border-red-500 bg-red-50/20 ring-1 ring-red-500' : 'border-stone-200 bg-white'"
+                     class="border rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-7 h-7 bg-[#DE2B24] rounded flex items-center justify-center text-white text-xs font-bold">街</div>
+                        <span class="text-xs font-bold text-stone-800">街口支付 JKOPAY</span>
+                    </div>
+                    <div class="w-4 h-4 rounded-full border flex items-center justify-center" :class="paymentMethod === 'jkopay' ? 'border-red-500 bg-red-500' : 'border-stone-300'">
+                        <div v-if="paymentMethod === 'jkopay'" class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <button @click="processPayment" 
+                :class="payBtnStyle"
+                class="w-full text-white text-xs font-bold py-3.5 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 active:scale-[0.99]">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>以模擬認證付 款 (${{ grandTotal }})</span>
+        </button>
+    </div>
+
+    <div v-if="currentPage === 'success'" class="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-14 h-14 bg-stone-900 rounded-full flex items-center justify-center text-amber-400 text-xl mb-4 shadow">
+            <i class="fa-solid fa-glass-cheers"></i>
+        </div>
+        <h2 class="text-lg font-bold text-stone-900 mb-1 font-serif">預約媒合成功！</h2>
+        <p class="text-xs text-stone-400 mb-6">您已順利完成支付，出車/出貨前島民將與您保持聯絡。</p>
+
+        <div class="bg-white border border-stone-200/60 rounded-xl p-4 w-full text-xs text-left space-y-2.5 mb-8 shadow-xs">
+            <div class="flex justify-between"><span class="text-stone-400">流水單號</span><span class="font-mono text-stone-700 font-bold">{{ lastOrderNumber }}</span></div>
+            <div class="flex justify-between">
+                <span class="text-stone-400">支付管道</span>
+                <span class="text-stone-700 font-medium uppercase">{{ paymentMethod }} (模擬)</span>
+            </div>
+            <div class="flex justify-between"><span class="text-stone-400">交易狀態</span><span class="text-emerald-600 font-bold">✓ 交易已受擔保</span></div>
+        </div>
+
+        <button @click="goToOrderHistory" class="w-full bg-stone-950 text-white text-xs py-3.5 rounded-xl font-bold hover:bg-stone-800 transition">
+            前往租借紀錄看詳情
+        </button>
+    </div>
+
+    <div v-if="currentPage === 'messages'" class="flex-1 p-5">
+        <h2 class="text-lg font-bold text-stone-800 mb-4 font-serif">聊天訊息</h2>
+        <div class="space-y-1">
+            <div v-for="chat in chatList" :key="chat.id" class="flex items-center gap-3 py-3 border-b border-stone-100 hover:bg-stone-50 p-2 rounded-xl cursor-pointer">
+                <div class="w-10 h-10 rounded-full overflow-hidden relative border border-stone-100">
+                    <img :src="chat.avatar" class="w-full h-full object-cover">
+                    <span v-if="chat.unread" class="absolute top-0 right-0 w-2.5 h-2.5 bg-amber-700 border-2 border-white rounded-full"></span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-baseline">
+                        <h4 class="text-xs font-bold text-stone-800">{{ chat.name }}</h4>
+                        <span class="text-[10px] text-stone-400">{{ chat.time }}</span>
+                    </div>
+                    <p class="text-xs text-stone-500 mt-1 truncate">{{ chat.preview }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="currentPage === 'profile'" class="flex-1 p-5">
+        <div class="flex items-center gap-3 mb-6 bg-white p-4 rounded-xl border border-stone-100 shadow-xs">
+            <div class="w-12 h-12 rounded-full overflow-hidden border border-stone-200 shadow-inner"><img :src="userProfile.avatar" class="w-full h-full object-cover"></div>
+            <div>
+                <h3 class="text-sm font-bold text-stone-800">{{ userProfile.name }}</h3>
+                <p class="text-[10px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded-full inline-block mt-0.5">信用評分 99 (卓越)</p>
+            </div>
+        </div>
+
+        <div class="space-y-5">
+            <div>
+                <h3 class="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-2 px-1">我的租借清單</h3>
+                <div v-if="myRentals.length === 0" class="text-center py-5 bg-white rounded-xl text-stone-400 text-xs border border-stone-100">尚無歷史租借紀錄</div>
+                <div v-else class="space-y-2">
+                    <div v-for="item in myRentals" :key="item.id" class="bg-white border border-stone-100 rounded-xl p-3 flex gap-3 text-xs items-center shadow-xs">
+                        <img :src="item.image" class="w-10 h-10 object-cover rounded bg-stone-50">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-stone-800 truncate">{{ item.name }}</h4>
+                            <p class="text-[10px] text-stone-400 mt-0.5">租期: 06-{{ item.start }} ~ 06-{{ item.end }} (共{{ item.days }}天)</p>
+                        </div>
+                        <span class="bg-amber-50 text-amber-900 border border-amber-200/50 px-2 py-0.5 rounded text-[9px] font-bold shrink-0">擔保中</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-2 px-1">我的上架項目</h3>
+                <div class="bg-white border border-stone-100 rounded-xl p-3 divide-y divide-stone-100">
+                    <div v-for="item in products.filter(p => p.owner === '我')" :key="item.id" class="flex gap-3 py-2 text-xs items-center first:pt-0 last:pb-0">
+                        <img :src="item.image" class="w-8 h-8 object-cover rounded">
+                        <div class="flex-1 min-w-0"><h4 class="font-medium text-stone-700 truncate">{{ item.name }}</h4></div>
+                        <span class="text-stone-400 text-[10px] font-bold">${{ item.price }}/日</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="currentPage === 'favorites'" class="flex-1 p-5">
+        <h2 class="text-lg font-bold text-stone-800 mb-4 font-serif">完美收藏夾</h2>
+        <div v-if="favoriteIds.length === 0" class="text-center py-16 text-stone-400 text-xs">目前空空如也</div>
+        <div v-else class="space-y-2">
+            <div v-for="id in favoriteIds" :key="id" class="bg-white border border-stone-100 rounded-xl p-3 flex gap-3 items-center shadow-xs">
+                <img :src="getProductById(id).image" class="w-12 h-12 object-cover rounded-lg bg-stone-50">
+                <div class="flex-1 min-w-0 cursor-pointer" @click="viewProduct(getProductById(id))">
+                    <h4 class="text-xs font-bold text-stone-800 truncate">{{ getProductById(id).name }}</h4>
+                    <p class="text-[11px] font-bold text-amber-950 mt-0.5">${{ getProductById(id).price }} / 日</p>
+                </div>
+                <button @click="toggleFavorite(id)" class="text-stone-300 hover:text-stone-600 transition p-2"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 h-16 flex items-center justify-around z-50">
+        <button @click="currentPage = 'home'" :class="['home', 'detail', 'search-results', 'select-date', 'order-confirm', 'checkout-gate', 'success'].includes(currentPage) ? 'text-amber-950 font-bold scale-103' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
+            <i class="fa-solid fa-compass text-lg"></i><span class="text-[9px]">找好物</span>
+        </button>
+        <button @click="currentPage = 'favorites'" :class="currentPage === 'favorites' ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
+            <i class="fa-solid fa-heart text-lg"></i><span class="text-[9px]">收藏夾</span>
+        </button>
+        <button @click="currentPage = 'rent-out'" :class="currentPage === 'rent-out' ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
+            <i class="fa-solid fa-circle-plus text-xl text-amber-950"></i><span class="text-[9px]">我要上架</span>
+        </button>
+        <button @click="currentPage = 'messages'" :class="currentPage === 'messages' ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
+            <i class="fa-solid fa-comment-dots text-lg"></i><span class="text-[9px]">聊聊</span>
+        </button>
+        <button @click="currentPage = 'profile'" :class="currentPage === 'profile' ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
+            <i class="fa-solid fa-user-cookie text-lg"></i><span class="text-[9px]">我的</span>
+        </button>
+    </nav>
+
+</div>
+
+<script>
+    const { createApp, ref, computed } = Vue;
+
+    createApp({
+        setup() {
+            const currentPage = ref('home');
+            const searchQuery = ref('');
+            const categories = ref(['書籍', '服飾', '生活電器', '相機攝影']);
+            const toastMessage = ref('');
+            const paymentMethod = ref('applepay'); // 預設模擬支付渠道
+
+            const products = ref([
+                { id: 1, name: '日系復古底片相機 (附頂級皮背帶)', category: '相機攝影', price: 350, deposit: 1500, description: '極度新穎的復古黑金傻瓜相機，出片色彩溫潤，街拍首選。內置閃光燈。', image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=400&q=80', owner: '古物收藏家' },
+                { id: 2, name: '現代設計空間美學經典圖鑑', category: '書籍', price: 80, deposit: 300, description: '精裝版現代空間美學設計圖鑑，適合作為展場布置擺拍道具。', image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=400&q=80', owner: '誠實書商' },
+                { id: 3, name: '純手工羊毛米白色廓形大衣', category: '服飾', price: 450, deposit: 2000, description: '極顯氣質的保暖大衣，僅穿拍過一次婚禮，無任何污損，出貨前均妥善乾洗。', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80', owner: '米蘭時尚客' }
+            ]);
+
+            const selectedProduct = ref(null);
+            const favoriteIds = ref([1]);
+            const rentalPeriod = ref({ start: null, end: null });
+            const lastOrderNumber = ref('');
+            const myRentals = ref([]);
+            
+            const userProfile = ref({ name: '極簡共享家', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80' });
+            const chatList = ref([
+                { id: 101, name: '古物收藏家', preview: '哈囉，這款底片相機目前有現貨喔！', time: '11:24', unread: true, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80' }
+            ]);
+            
+            const newProduct = ref({ name: '', category: '書籍', price: null, deposit: null, description: '', image: '' });
+
+            // UX 反饋機制 (Toast)
+            const showToast = (msg) => {
+                toastMessage.value = msg;
+                setTimeout(() => { toastMessage.value = ''; }, 2000);
+            };
+
+            const filteredProducts = computed(() => {
+                if (!searchQuery.value) return products.value;
+                return products.value.filter(p => p.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
+            });
+
+            const totalDays = computed(() => {
+                if (rentalPeriod.value.start && rentalPeriod.value.end) {
+                    return Math.max(1, rentalPeriod.value.end - rentalPeriod.value.start + 1);
+                }
+                return 0;
+            });
+
+            const grandTotal = computed(() => {
+                if (!selectedProduct.value) return 0;
+                const subtotal = selectedProduct.value.price * totalDays.value;
+                const dep = selectedProduct.value.deposit || (selectedProduct.value.price * 3);
+                return subtotal + dep;
+            });
+
+            // UX 動態色彩收銀台按鈕
+            const payBtnStyle = computed(() => {
+                if (paymentMethod.value === 'applepay') return 'bg-black hover:bg-stone-900';
+                if (paymentMethod.value === 'linepay') return 'bg-[#06C755] hover:bg-[#05b34c]';
+                if (paymentMethod.value === 'jkopay') return 'bg-[#DE2B24] hover:bg-[#c7221c]';
+                return 'bg-amber-900';
+            });
+
+            const goSearch = () => { if (searchQuery.value.trim()) currentPage.value = 'search-results'; };
+            const selectCategory = (cat) => { searchQuery.value = cat; currentPage.value = 'search-results'; };
+            const viewProduct = (product) => { selectedProduct.value = product; currentPage.value = 'detail'; };
+            
+            const toggleFavorite = (id) => {
+                const index = favoriteIds.value.indexOf(id);
+                if (index > -1) {
+                    favoriteIds.value.splice(index, 1);
+                    showToast('已將項目移出收藏夾');
+                } else {
+                    favoriteIds.value.push(id);
+                    showToast('❤ 已成功加入珍藏');
+                }
+            };
+            const isFavorite = (id) => favoriteIds.value.includes(id);
+            const getProductById = (id) => products.value.find(p => p.id === id) || {};
+            const startChat = () => currentPage.value = 'messages';
+            const simulateUpload = () => { newProduct.value.image = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=400&q=80'; };
+
+            const submitRentOut = () => {
+                if (!newProduct.value.name || !newProduct.value.price) {
+                    showToast('❌ 請完整填寫品名與日租金');
+                    return;
+                }
+                products.value.unshift({
+                    id: products.value.length + 1,
+                    name: newProduct.value.name,
+                    category: newProduct.value.category,
+                    price: Number(newProduct.value.price),
+                    deposit: Number(newProduct.value.deposit || newProduct.value.price * 3),
+                    description: newProduct.value.description || '島民暫無詳細描述。',
+                    image: newProduct.value.image || 'https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=400&q=80',
+                    owner: '我'
+                });
+                showToast('✨ 發布成功！');
+                newProduct.value = { name: '', category: '書籍', price: null, deposit: null, description: '', image: '' };
+                currentPage.value = 'home';
+            };
+
+            // 優化後的日曆點擊邏輯
+            const selectDay = (day) => {
+                if (!rentalPeriod.value.start || (rentalPeriod.value.start && rentalPeriod.value.end)) {
+                    rentalPeriod.value.start = day;
+                    rentalPeriod.value.end = null;
+                } else if (day >= rentalPeriod.value.start) {
+                    rentalPeriod.value.end = day;
+                } else {
+                    rentalPeriod.value.start = day;
+                    rentalPeriod.value.end = null;
+                }
+            };
+
+            const getDayClass = (day) => {
+                if (day < 3) return ''; // 過去日期不套用樣式
+                const start = rentalPeriod.value.start;
+                const end = rentalPeriod.value.end;
+                if (day === start && !end) return 'bg-amber-900 text-white rounded-lg font-bold scale-105 shadow';
+                if (day === start || day === end) return 'bg-amber-950 text-white rounded-lg font-bold scale-105 shadow';
+                if (start && end && day > start && day < end) return 'bg-amber-100/70 text-amber-950 rounded-none';
+                return 'bg-white hover:bg-stone-100 text-stone-700 border border-stone-50';
+            };
+
+            const confirmDate = () => { if (totalDays.value > 0) currentPage.value = 'order-confirm'; };
+
+            const processPayment = () => {
+                lastOrderNumber.value = 'CR-2026' + Math.floor(Math.random() * 89999 + 10000);
+                myRentals.value.unshift({
+                    id: Date.now(),
+                    name: selectedProduct.value.name,
+                    image: selectedProduct.value.image,
+                    start: rentalPeriod.value.start,
+                    end: rentalPeriod.value.end,
+                    days: totalDays.value
+                });
+                currentPage.value = 'success';
+                showToast('🔒 支付成功（模擬驗證安全通過）');
+            };
+
+            const goToOrderHistory = () => {
+                rentalPeriod.value = { start: null, end: null };
+                currentPage.value = 'profile';
+            };
+
+            return {
+                currentPage, searchQuery, categories, products, selectedProduct, favoriteIds, userProfile, chatList, newProduct, rentalPeriod, lastOrderNumber, myRentals, toastMessage, paymentMethod,
+                filteredProducts, totalDays, grandTotal, payBtnStyle, goSearch, selectCategory, viewProduct, toggleFavorite, isFavorite, getProductById, startChat, simulateUpload, submitRentOut, selectDay, getDayClass, confirmDate, processPayment, goToOrderHistory, showToast
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>
