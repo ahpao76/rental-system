@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CoRent 質感租借平台</title>
+    <!-- Vue 3 CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 圖示 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -14,15 +17,20 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
-        /* 隱藏滾動條但保持功能 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 聊天室對話流平滑滾動 */
+        .chat-messages {
+            scroll-behavior: smooth;
+        }
     </style>
 </head>
 <body>
 
 <div id="app" class="max-w-md mx-auto min-h-screen bg-[#faf9f5] flex flex-col shadow-2xl relative pb-20 overflow-x-hidden">
     
+    <!-- 全局 Toast 提示元件 -->
     <transition name="fade">
         <div v-if="toastMessage" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-stone-950/90 text-white text-xs py-2.5 px-5 rounded-full shadow-lg flex items-center gap-2 backdrop-blur-sm">
             <i class="fa-solid fa-circle-check text-amber-400"></i>
@@ -30,20 +38,25 @@
         </div>
     </transition>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 1：首頁 (home) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'home'" class="flex-1 p-5">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-serif font-bold tracking-wide text-amber-950 cursor-pointer" @click="currentPage = 'home'">CoRent.</h1>
+            <h1 class="text-2xl font-serif font-bold tracking-wide text-amber-950 cursor-pointer" @click="resetSearch">CoRent.</h1>
             <div class="relative w-9 h-9 rounded-full bg-stone-200 overflow-hidden cursor-pointer border border-stone-200 shadow-sm" @click="currentPage = 'profile'">
                 <img :src="userProfile.avatar" class="w-full h-full object-cover">
             </div>
         </div>
 
+        <!-- 搜尋欄 -->
         <div class="relative mb-6 shadow-sm rounded-full">
-            <input type="text" v-model="searchQuery" @keyup.enter="goSearch" placeholder="搜尋書籍、服飾、生活用品..." 
+            <input type="text" v-model="searchQuery" @keyup.enter="goSearch" placeholder="搜尋書籍、服飾、生活電器..." 
                    class="w-full bg-white border border-stone-200 rounded-full py-3 pl-11 pr-4 text-sm focus:outline-none focus:border-amber-700 transition">
             <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-stone-400 text-sm cursor-pointer" @click="goSearch"></i>
         </div>
 
+        <!-- 商品分類 -->
         <div class="mb-6">
             <h3 class="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-3 px-1">探索分類</h3>
             <div class="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
@@ -54,6 +67,7 @@
             </div>
         </div>
 
+        <!-- 推薦商品區 -->
         <div>
             <div class="flex justify-between items-center mb-4 px-1">
                 <h2 class="text-base font-bold text-stone-800">為你推薦</h2>
@@ -62,6 +76,7 @@
             
             <div class="grid grid-cols-2 gap-4">
                 <div v-for="product in products" :key="product.id" class="bg-white rounded-xl border border-stone-100 overflow-hidden shadow-sm relative group transition hover:shadow-md">
+                    <!-- 收藏愛心 -->
                     <button @click.stop="toggleFavorite(product.id)" class="absolute top-2.5 right-2.5 z-10 w-7 h-7 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-105 transition">
                         <i :class="isFavorite(product.id) ? 'fa-solid fa-heart text-red-500' : 'fa-regular fa-heart text-stone-500'"></i>
                     </button>
@@ -84,9 +99,12 @@
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 2：搜尋與分類結果頁 (search-results) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'search-results'" class="flex-1 p-5">
         <div class="flex items-center gap-3 mb-5">
-            <button @click="currentPage = 'home'" class="text-stone-600 w-8 h-8 rounded-full bg-white flex items-center justify-center border border-stone-200"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+            <button @click="resetSearch" class="text-stone-600 w-8 h-8 rounded-full bg-white flex items-center justify-center border border-stone-200"><i class="fa-solid fa-arrow-left text-xs"></i></button>
             <div class="relative flex-1">
                 <input type="text" v-model="searchQuery" placeholder="搜尋..." class="w-full bg-white border border-stone-200 rounded-full py-2 pl-9 pr-4 text-sm focus:outline-none">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-stone-400 text-xs"></i>
@@ -101,16 +119,20 @@
             沒有找到相符的質感好物
         </div>
         <div v-else class="grid grid-cols-2 gap-4">
-            <div v-for="product in filteredProducts" :key="product.id" @click="viewProduct(product)" class="bg-white rounded-xl border border-stone-100 overflow-hidden shadow-sm cursor-pointer">
+            <div v-for="product in filteredProducts" :key="product.id" @click="viewProduct(product)" class="bg-white rounded-xl border border-stone-100 overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition">
                 <div class="w-full h-32 bg-stone-100"><img :src="product.image" class="w-full h-full object-cover"></div>
                 <div class="p-3">
-                    <h4 class="text-xs font-bold text-stone-800 truncate">{{ product.name }}</h4>
+                    <span class="text-[9px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded font-medium">{{ product.category }}</span>
+                    <h4 class="text-xs font-bold text-stone-800 truncate mt-1">{{ product.name }}</h4>
                     <p class="text-xs font-bold text-amber-950 mt-1">${{ product.price }} / 日</p>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 3：商品詳情頁 (detail) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'detail' && selectedProduct" class="flex-1 bg-white">
         <div class="relative h-72 bg-stone-100">
             <img :src="selectedProduct.image" class="w-full h-full object-cover">
@@ -134,13 +156,15 @@
                 </div>
             </div>
 
+            <!-- 出租者 -->
             <div class="flex items-center gap-3 mb-5 p-3 bg-white border border-stone-100 rounded-xl">
                 <div class="w-9 h-9 rounded-full bg-stone-200 overflow-hidden"><img :src="selectedProduct.ownerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'" class="w-full h-full object-cover"></div>
                 <div class="flex-1">
-                    <p class="text-xs font-bold text-stone-800">{{ selectedProduct.owner || '質感品味家' }}</p>
+                    <p class="text-xs font-bold text-stone-800">{{ selectedProduct.owner }}</p>
                     <p class="text-[10px] text-emerald-600">✓ 認證共享島民</p>
                 </div>
-                <button @click="startChat(selectedProduct.owner)" class="text-xs border border-stone-200 px-3 py-1 rounded-full hover:bg-stone-50 font-medium text-stone-600">聊聊</button>
+                <!-- 點擊觸發真實聊聊視窗 -->
+                <button @click="openChatWindow(selectedProduct.owner, selectedProduct.ownerAvatar)" class="text-xs border border-stone-200 px-4 py-1.5 rounded-full hover:bg-stone-50 font-bold text-stone-600 transition">聊聊</button>
             </div>
 
             <div class="mb-6">
@@ -154,6 +178,9 @@
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 4：商品出租頁-我要出租 (rent-out) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'rent-out'" class="flex-1 p-5">
         <h2 class="text-lg font-bold text-stone-800 mb-5 font-serif">上架您的共享物品</h2>
         
@@ -206,6 +233,9 @@
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 5：選擇租借日期頁 (select-date) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'select-date'" class="flex-1 p-5">
         <div class="flex items-center gap-3 mb-4">
             <button @click="currentPage = 'detail'" class="text-stone-600"><i class="fa-solid fa-arrow-left text-xs"></i></button>
@@ -251,6 +281,9 @@
         </button>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 6：訂單確認頁 (order-confirm) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'order-confirm'" class="flex-1 p-5">
         <h2 class="text-base font-bold text-stone-800 mb-4">確認訂單明細</h2>
         
@@ -283,6 +316,9 @@
         </button>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 6.5：模擬付款收銀台畫面 (checkout-gate) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'checkout-gate'" class="flex-1 p-5 bg-stone-50/50">
         <div class="flex items-center gap-3 mb-5">
             <button @click="currentPage = 'order-confirm'" class="text-stone-600"><i class="fa-solid fa-arrow-left text-xs"></i></button>
@@ -337,14 +373,16 @@
             </div>
         </div>
 
-        <button @click="processPayment" 
-                :class="payBtnStyle"
+        <button @click="processPayment" :class="payBtnStyle"
                 class="w-full text-white text-xs font-bold py-3.5 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 active:scale-[0.99]">
             <i class="fa-solid fa-shield-halved"></i>
-            <span>以模擬認證付 款 (${{ grandTotal }})</span>
+            <span>以模擬認證付款 (${{ grandTotal }})</span>
         </button>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 7：租借成功頁 (success) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'success'" class="flex-1 flex flex-col items-center justify-center p-6 text-center">
         <div class="w-14 h-14 bg-stone-900 rounded-full flex items-center justify-center text-amber-400 text-xl mb-4 shadow">
             <i class="fa-solid fa-glass-cheers"></i>
@@ -366,11 +404,16 @@
         </button>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 8：訊息中心聯絡名單頁 (messages) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'messages'" class="flex-1 p-5">
         <h2 class="text-lg font-bold text-stone-800 mb-4 font-serif">聊天訊息</h2>
         <div class="space-y-1">
-            <div v-for="chat in chatList" :key="chat.id" class="flex items-center gap-3 py-3 border-b border-stone-100 hover:bg-stone-50 p-2 rounded-xl cursor-pointer">
-                <div class="w-10 h-10 rounded-full overflow-hidden relative border border-stone-100">
+            <div v-for="chat in chatList" :key="chat.id" 
+                 @click="openChatWindow(chat.name, chat.avatar)"
+                 class="flex items-center gap-3 py-3 border-b border-stone-100 hover:bg-stone-100/70 p-2 rounded-xl cursor-pointer transition">
+                <div class="w-10 h-10 rounded-full overflow-hidden relative border border-stone-100 shrink-0">
                     <img :src="chat.avatar" class="w-full h-full object-cover">
                     <span v-if="chat.unread" class="absolute top-0 right-0 w-2.5 h-2.5 bg-amber-700 border-2 border-white rounded-full"></span>
                 </div>
@@ -385,6 +428,52 @@
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 🌟 新增：真實模擬聊天視窗頁 (chat-window) -->
+    <!-- ========================================================= -->
+    <div v-if="currentPage === 'chat-window'" class="flex-1 flex flex-col h-[calc(100vh-4rem)] bg-stone-50">
+        <!-- 聊天室頂部標頭 -->
+        <div class="bg-white border-b border-stone-200/80 px-4 py-3 flex items-center gap-3 shadow-xs shrink-0">
+            <button @click="currentPage = 'messages'" class="text-stone-600 p-1"><i class="fa-solid fa-chevron-left"></i></button>
+            <div class="w-8 h-8 rounded-full overflow-hidden"><img :src="activeChatUser.avatar" class="w-full h-full object-cover"></div>
+            <div>
+                <h4 class="text-xs font-bold text-stone-800">{{ activeChatUser.name }}</h4>
+                <p class="text-[9px] text-emerald-600 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span>在線下</p>
+            </div>
+        </div>
+
+        <!-- 訊息對話串流區 -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3 chat-messages no-scrollbar" id="chatBox">
+            <div v-for="(msg, idx) in currentMessages" :key="idx" 
+                 :class="msg.isMe ? 'justify-end' : 'justify-start'" class="flex items-end gap-2">
+                
+                <!-- 對方頭像 -->
+                <div v-if="!msg.isMe" class="w-6 h-6 rounded-full overflow-hidden shrink-0"><img :src="activeChatUser.avatar" class="w-full h-full object-cover"></div>
+                
+                <!-- 對話框本體 -->
+                <div :class="msg.isMe ? 'bg-amber-900 text-white rounded-br-none' : 'bg-white border border-stone-200 text-stone-800 rounded-bl-none'"
+                     class="max-w-[75%] px-3 py-2 rounded-2xl text-xs leading-relaxed shadow-xs">
+                    {{ msg.text }}
+                </div>
+                
+                <!-- 時間 -->
+                <span class="text-[8px] text-stone-400 mb-0.5">{{ msg.time }}</span>
+            </div>
+        </div>
+
+        <!-- 底部打字輸入框 -->
+        <div class="bg-white border-t border-stone-200/80 p-3 flex items-center gap-2 shrink-0">
+            <input type="text" v-model="typedMessage" @keyup.enter="sendMessage" placeholder="輸入訊息詢問共享細節..." 
+                   class="flex-1 bg-stone-100 border border-stone-200 rounded-full py-2 px-4 text-xs focus:outline-none focus:bg-white focus:border-amber-800 transition">
+            <button @click="sendMessage" class="w-8 h-8 bg-amber-900 text-white rounded-full flex items-center justify-center shadow-xs active:scale-95 transition">
+                <i class="fa-solid fa-paper-plane text-xs"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 頁面 9：我的頁面 (profile) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'profile'" class="flex-1 p-5">
         <div class="flex items-center gap-3 mb-6 bg-white p-4 rounded-xl border border-stone-100 shadow-xs">
             <div class="w-12 h-12 rounded-full overflow-hidden border border-stone-200 shadow-inner"><img :src="userProfile.avatar" class="w-full h-full object-cover"></div>
@@ -423,6 +512,9 @@
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 頁面 10：收藏頁 (favorites) -->
+    <!-- ========================================================= -->
     <div v-if="currentPage === 'favorites'" class="flex-1 p-5">
         <h2 class="text-lg font-bold text-stone-800 mb-4 font-serif">完美收藏夾</h2>
         <div v-if="favoriteIds.length === 0" class="text-center py-16 text-stone-400 text-xs">目前空空如也</div>
@@ -438,8 +530,11 @@
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- 全站底部主導航 -->
+    <!-- ========================================================= -->
     <nav class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/80 h-16 flex items-center justify-around z-50">
-        <button @click="currentPage = 'home'" :class="['home', 'detail', 'search-results', 'select-date', 'order-confirm', 'checkout-gate', 'success'].includes(currentPage) ? 'text-amber-950 font-bold scale-103' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
+        <button @click="resetSearch" :class="['home', 'detail', 'search-results', 'select-date', 'order-confirm', 'checkout-gate', 'success'].includes(currentPage) ? 'text-amber-950 font-bold scale-103' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
             <i class="fa-solid fa-compass text-lg"></i><span class="text-[9px]">找好物</span>
         </button>
         <button @click="currentPage = 'favorites'" :class="currentPage === 'favorites' ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
@@ -448,7 +543,7 @@
         <button @click="currentPage = 'rent-out'" :class="currentPage === 'rent-out' ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
             <i class="fa-solid fa-circle-plus text-xl text-amber-950"></i><span class="text-[9px]">我要上架</span>
         </button>
-        <button @click="currentPage = 'messages'" :class="currentPage === 'messages' ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
+        <button @click="currentPage = 'messages'" :class="['messages', 'chat-window'].includes(currentPage) ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
             <i class="fa-solid fa-comment-dots text-lg"></i><span class="text-[9px]">聊聊</span>
         </button>
         <button @click="currentPage = 'profile'" :class="currentPage === 'profile' ? 'text-amber-950 font-bold' : 'text-stone-400'" class="flex flex-col items-center gap-0.5 transition">
@@ -459,7 +554,7 @@
 </div>
 
 <script>
-    const { createApp, ref, computed } = Vue;
+    const { createApp, ref, computed, nextTick } = Vue;
 
     createApp({
         setup() {
@@ -467,12 +562,12 @@
             const searchQuery = ref('');
             const categories = ref(['書籍', '服飾', '生活電器', '相機攝影']);
             const toastMessage = ref('');
-            const paymentMethod = ref('applepay'); // 預設模擬支付渠道
+            const paymentMethod = ref('applepay');
 
             const products = ref([
-                { id: 1, name: '日系復古底片相機 (附頂級皮背帶)', category: '相機攝影', price: 350, deposit: 1500, description: '極度新穎的復古黑金傻瓜相機，出片色彩溫潤，街拍首選。內置閃光燈。', image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=400&q=80', owner: '古物收藏家' },
-                { id: 2, name: '現代設計空間美學經典圖鑑', category: '書籍', price: 80, deposit: 300, description: '精裝版現代空間美學設計圖鑑，適合作為展場布置擺拍道具。', image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=400&q=80', owner: '誠實書商' },
-                { id: 3, name: '純手工羊毛米白色廓形大衣', category: '服飾', price: 450, deposit: 2000, description: '極顯氣質的保暖大衣，僅穿拍過一次婚禮，無任何污損，出貨前均妥善乾洗。', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80', owner: '米蘭時尚客' }
+                { id: 1, name: '日系復古底片相機 (附頂級皮背帶)', category: '相機攝影', price: 350, deposit: 1500, description: '極度新穎的復古黑金傻瓜相機，出片色彩溫潤，街拍首選。內置閃光燈。', image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=400&q=80', owner: '古物收藏家', ownerAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80' },
+                { id: 2, name: '現代設計空間美學經典圖鑑', category: '書籍', price: 80, deposit: 300, description: '精裝版現代空間美學設計圖鑑，適合作為展場布置擺拍道具。', image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=400&q=80', owner: '誠實書商', ownerAvatar: 'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?auto=format&fit=crop&w=100&q=80' },
+                { id: 3, name: '純手工羊毛米白色廓形大衣', category: '服飾', price: 450, deposit: 2000, description: '極顯氣質的保暖大衣，僅穿拍過一次婚禮，無任何污損，出貨前均妥善乾洗。', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80', owner: '米蘭時尚客', ownerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80' }
             ]);
 
             const selectedProduct = ref(null);
@@ -482,21 +577,31 @@
             const myRentals = ref([]);
             
             const userProfile = ref({ name: '極簡共享家', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80' });
+            
             const chatList = ref([
                 { id: 101, name: '古物收藏家', preview: '哈囉，這款底片相機目前有現貨喔！', time: '11:24', unread: true, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80' }
             ]);
             
+            // 聊聊對話狀態
+            const activeChatUser = ref({ name: '', avatar: '' });
+            const typedMessage = ref('');
+            const currentMessages = ref([]);
+
             const newProduct = ref({ name: '', category: '書籍', price: null, deposit: null, description: '', image: '' });
 
-            // UX 反饋機制 (Toast)
             const showToast = (msg) => {
                 toastMessage.value = msg;
                 setTimeout(() => { toastMessage.value = ''; }, 2000);
             };
 
+            // 🎯 修正邏輯：同時檢查商品名稱與分類
             const filteredProducts = computed(() => {
                 if (!searchQuery.value) return products.value;
-                return products.value.filter(p => p.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
+                const query = searchQuery.value.toLowerCase();
+                return products.value.filter(p => 
+                    p.name.toLowerCase().includes(query) || 
+                    p.category.toLowerCase().includes(query)
+                );
             });
 
             const totalDays = computed(() => {
@@ -513,7 +618,6 @@
                 return subtotal + dep;
             });
 
-            // UX 動態色彩收銀台按鈕
             const payBtnStyle = computed(() => {
                 if (paymentMethod.value === 'applepay') return 'bg-black hover:bg-stone-900';
                 if (paymentMethod.value === 'linepay') return 'bg-[#06C755] hover:bg-[#05b34c]';
@@ -523,7 +627,73 @@
 
             const goSearch = () => { if (searchQuery.value.trim()) currentPage.value = 'search-results'; };
             const selectCategory = (cat) => { searchQuery.value = cat; currentPage.value = 'search-results'; };
+            const resetSearch = () => { searchQuery.value = ''; currentPage.value = 'home'; };
             const viewProduct = (product) => { selectedProduct.value = product; currentPage.value = 'detail'; };
+            
+            // 💬 聊聊對話視窗打開邏輯
+            const openChatWindow = (name, avatar) => {
+                activeChatUser.value = { name, avatar };
+                currentPage.value = 'chat-window';
+                
+                // 模擬初始對話紀錄
+                currentMessages.value = [
+                    { isMe: false, text: `您好！我是 ${name}，很高興能與您共享物品。`, time: '11:20' },
+                    { isMe: false, text: '物品出貨前皆會完成紫外線消毒，有任何租借細節問題都可以問我喔！', time: '11:21' }
+                ];
+                
+                // 清除小紅點
+                const existingChat = chatList.value.find(c => c.name === name);
+                if (existingChat) existingChat.unread = false;
+
+                scrollToBottom();
+            };
+
+            // 送出對話訊息
+            const sendMessage = () => {
+                if (!typedMessage.value.trim()) return;
+                
+                currentMessages.value.push({
+                    isMe: true,
+                    text: typedMessage.value,
+                    time: '11:25'
+                });
+
+                // 更新聊聊列表的預覽文字
+                const existingChat = chatList.value.find(c => c.name === activeChatUser.value.name);
+                if (existingChat) {
+                    existingChat.preview = typedMessage.value;
+                    existingChat.time = '11:25';
+                } else {
+                    chatList.value.unshift({
+                        id: Date.now(),
+                        name: activeChatUser.value.name,
+                        preview: typedMessage.value,
+                        time: '11:25',
+                        unread: false,
+                        avatar: activeChatUser.value.avatar
+                    });
+                }
+
+                typedMessage.value = '';
+                scrollToBottom();
+
+                // 🤖 模擬島民自動回覆 (UX驚喜加分)
+                setTimeout(() => {
+                    currentMessages.value.push({
+                        isMe: false,
+                        text: '收到您的訊息！我等等忙完馬上為您確認時程！🙏',
+                        time: '11:26'
+                    });
+                    scrollToBottom();
+                }, 1200);
+            };
+
+            const scrollToBottom = () => {
+                nextTick(() => {
+                    const chatBox = document.getElementById('chatBox');
+                    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+                });
+            };
             
             const toggleFavorite = (id) => {
                 const index = favoriteIds.value.indexOf(id);
@@ -537,7 +707,6 @@
             };
             const isFavorite = (id) => favoriteIds.value.includes(id);
             const getProductById = (id) => products.value.find(p => p.id === id) || {};
-            const startChat = () => currentPage.value = 'messages';
             const simulateUpload = () => { newProduct.value.image = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=400&q=80'; };
 
             const submitRentOut = () => {
@@ -553,14 +722,14 @@
                     deposit: Number(newProduct.value.deposit || newProduct.value.price * 3),
                     description: newProduct.value.description || '島民暫無詳細描述。',
                     image: newProduct.value.image || 'https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=400&q=80',
-                    owner: '我'
+                    owner: '我',
+                    ownerAvatar: userProfile.value.avatar
                 });
                 showToast('✨ 發布成功！');
                 newProduct.value = { name: '', category: '書籍', price: null, deposit: null, description: '', image: '' };
                 currentPage.value = 'home';
             };
 
-            // 優化後的日曆點擊邏輯
             const selectDay = (day) => {
                 if (!rentalPeriod.value.start || (rentalPeriod.value.start && rentalPeriod.value.end)) {
                     rentalPeriod.value.start = day;
@@ -574,7 +743,7 @@
             };
 
             const getDayClass = (day) => {
-                if (day < 3) return ''; // 過去日期不套用樣式
+                if (day < 3) return '';
                 const start = rentalPeriod.value.start;
                 const end = rentalPeriod.value.end;
                 if (day === start && !end) return 'bg-amber-900 text-white rounded-lg font-bold scale-105 shadow';
@@ -605,8 +774,8 @@
             };
 
             return {
-                currentPage, searchQuery, categories, products, selectedProduct, favoriteIds, userProfile, chatList, newProduct, rentalPeriod, lastOrderNumber, myRentals, toastMessage, paymentMethod,
-                filteredProducts, totalDays, grandTotal, payBtnStyle, goSearch, selectCategory, viewProduct, toggleFavorite, isFavorite, getProductById, startChat, simulateUpload, submitRentOut, selectDay, getDayClass, confirmDate, processPayment, goToOrderHistory, showToast
+                currentPage, searchQuery, categories, products, selectedProduct, favoriteIds, userProfile, chatList, newProduct, rentalPeriod, lastOrderNumber, myRentals, toastMessage, paymentMethod, activeChatUser, typedMessage, currentMessages,
+                filteredProducts, totalDays, grandTotal, payBtnStyle, goSearch, selectCategory, resetSearch, viewProduct, toggleFavorite, isFavorite, getProductById, openChatWindow, sendMessage, simulateUpload, submitRentOut, selectDay, getDayClass, confirmDate, processPayment, goToOrderHistory, showToast
             };
         }
     }).mount('#app');
